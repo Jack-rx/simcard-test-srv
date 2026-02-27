@@ -27,7 +27,7 @@ router.post('/', upload.single('file'), (req, res) => {
   res.json({ ok: true, filename: req.file.filename, size: req.file.size });
 });
 
-// GET /api/upload/list — listar archivos recibidos
+// GET /api/upload/list — listar archivos
 router.get('/list', (req, res) => {
   try {
     const files = fs.readdirSync(uploadDir).map(f => {
@@ -40,8 +40,15 @@ router.get('/list', (req, res) => {
   }
 });
 
-// GET /api/upload/file/:name — descargar archivo
+// GET /api/upload/file/:name — servir archivo para visualizar (el navegador decide cómo mostrarlo)
 router.get('/file/:name', (req, res) => {
+  const file = path.join(uploadDir, req.params.name.replace(/\.\./g, ''));
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'No encontrado' });
+  res.sendFile(file);
+});
+
+// GET /api/upload/download/:name — forzar descarga
+router.get('/download/:name', (req, res) => {
   const file = path.join(uploadDir, req.params.name.replace(/\.\./g, ''));
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'No encontrado' });
   res.download(file);

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commander — Archivos</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #1a1a1a;
+      --bg2:        #222222;
+      --bg3:        #2a2a2a;
+      --border:     #333333;
+      --border2:    #404040;
+      --text:       #d4d4d4;
+      --text-dim:   #6e6e6e;
+      --text-faint: #3e3e3e;
+      --accent:     #4fc3f7;
+      --accent2:    #1e88e5;
+      --green:      #81c784;
+      --red:        #ef5350;
+      --font-mono:  'IBM Plex Mono', monospace;
+      --font-ui:    'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .page {
+      display: grid;
+      grid-template-rows: 44px 1fr;
+      grid-template-columns: 280px 1fr;
+      grid-template-areas:
+        "topbar  topbar"
+        "sidebar preview";
+      height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      grid-area: topbar;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-brand {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+    }
+    .topbar-brand strong { color: var(--text); }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .topbar-stat {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+    .topbar-back {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 2px;
+      transition: all 0.12s;
+    }
+    .topbar-back:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      grid-area: sidebar;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .sidebar-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .sidebar-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .sidebar-empty {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      text-align: center;
+      padding: 40px 16px;
+      line-height: 2;
+    }
+
+    /* ── File item ── */
+    .file-item {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 0;
+      padding: 0;
+      border-left: 2px solid transparent;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .file-item:hover   { background: var(--bg3); border-left-color: var(--border2); }
+    .file-item.active  { background: var(--bg3); border-left-color: var(--accent); }
+
+    .file-item-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 12px 0 12px 10px;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .file-item-info {
+      padding: 10px 8px 10px 6px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .file-item-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+    .file-item-meta {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-faint);
+      margin-top: 3px;
+    }
+    .file-item-dl {
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+    }
+    .btn-dl {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 2px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.12s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-dl:hover { color: var(--accent); border-color: var(--accent); }
+    .btn-dl svg { flex-shrink: 0; }
+
+    /* ── Preview ── */
+    .preview {
+      grid-area: preview;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      height: 44px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .preview-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      margin-right: 16px;
+    }
+    .preview-name.empty { color: var(--text-faint); }
+    .btn-download {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: #111;
+      background: var(--accent2);
+      border: none;
+      padding: 6px 16px;
+      border-radius: 2px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .btn-download:hover { background: var(--accent); }
+    .btn-download[hidden] { display: none; }
+
+    .preview-content {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Estados del preview */
+    .preview-placeholder {
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+    .preview-placeholder .ph-icon {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 14px;
+      opacity: 0.3;
+    }
+    .preview-placeholder .ph-text {
+      font-size: 11px;
+      color: var(--text-faint);
+      line-height: 2;
+    }
+
+    /* Imagen */
+    .preview-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Video */
+    .preview-vid {
+      max-width: 100%;
+      max-height: 100%;
+      outline: none;
+    }
+
+    /* Audio */
+    .preview-audio-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .preview-audio-icon { font-size: 64px; opacity: 0.3; }
+    .preview-aud {
+      width: 320px;
+      accent-color: var(--accent);
+    }
+
+    /* Texto */
+    .preview-text-wrap {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      align-self: stretch;
+      padding: 20px 24px;
+    }
+    .preview-text-wrap pre {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .preview-text-wrap pre.json { color: #9cdcfe; }
+
+    /* PDF */
+    .preview-pdf {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* No preview */
+    .preview-noop {
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+    .preview-noop .np-icon  { font-size: 52px; display: block; margin-bottom: 14px; opacity: 0.25; }
+    .preview-noop .np-name  { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .preview-noop .np-size  { font-size: 10px; color: var(--text-faint); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <span class="topbar-brand"><strong>commander</strong> / uploads</span>
+    <div class="topbar-right">
+      <span class="topbar-stat" id="statText"></span>
+      <a class="topbar-back" href="/">← panel</a>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">archivos</span>
+      <span class="sidebar-count" id="sidebarCount">—</span>
+    </div>
+    <div class="sidebar-scroll" id="fileList">
+      <div class="sidebar-empty">cargando…</div>
+    </div>
+  </aside>
+
+  <!-- PREVIEW -->
+  <section class="preview">
+    <div class="preview-bar">
+      <span class="preview-name empty" id="previewName">ningún archivo seleccionado</span>
+      <a class="btn-download" id="btnDownload" href="#" hidden>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        descargar
+      </a>
+    </div>
+    <div class="preview-content" id="previewContent">
+      <div class="preview-placeholder">
+        <span class="ph-icon">📁</span>
+        <span class="ph-text">selecciona un archivo<br>de la lista lateral</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+'use strict';
+
+const fileList      = document.getElementById('fileList');
+const sidebarCount  = document.getElementById('sidebarCount');
+const statText      = document.getElementById('statText');
+const previewName   = document.getElementById('previewName');
+const previewContent = document.getElementById('previewContent');
+const btnDownload   = document.getElementById('btnDownload');
+
+// ── Load ────────────────────────────────────────────────
+async function loadFiles() {
+  try {
+    const res   = await fetch('/api/upload/list');
+    const files = await res.json();
+    render(files);
+  } catch(e) {
+    fileList.innerHTML = '<div class="sidebar-empty">error cargando archivos</div>';
+  }
+}
+
+function render(files) {
+  const total = files.reduce((s, f) => s + f.size, 0);
+  sidebarCount.textContent = files.length;
+  statText.textContent     = files.length
+    ? `${files.length} archivo${files.length !== 1 ? 's' : ''} · ${fmtSize(total)}`
+    : '';
+
+  if (!files.length) {
+    fileList.innerHTML = '<div class="sidebar-empty">no hay archivos<br>subidos aún</div>';
+    return;
+  }
+
+  fileList.innerHTML = '';
+  files.forEach((f, i) => {
+    const url     = `/api/upload/file/${encodeURIComponent(f.name)}`;
+    const dlUrl   = `/api/upload/download/${encodeURIComponent(f.name)}`;
+    const date = new Date(f.date).toLocaleString('es', {
+      day:'2-digit', month:'2-digit', year:'2-digit',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    const item = document.createElement('div');
+    item.className   = 'file-item';
+    item.dataset.idx = i;
+    item.innerHTML = `
+      <div class="file-item-icon">${icon(f.name)}</div>
+      <div class="file-item-info">
+        <div class="file-item-name" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div class="file-item-meta">${fmtSize(f.size)} · ${date}</div>
+      </div>
+      <div class="file-item-dl">
+        <button class="btn-dl" title="Descargar">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    `;
+    // Botón ↓ — solo descarga, no abre preview
+    item.querySelector('.btn-dl').addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerDownload(dlUrl, f.name);
+    });
+    item.addEventListener('click', () => selectFile(f, item, url, dlUrl));
+    fileList.appendChild(item);
+  });
+
+
+}
+
+// ── Select ──────────────────────────────────────────────
+function selectFile(f, el, url, dlUrl) {
+  document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+
+  previewName.textContent = f.name;
+  previewName.classList.remove('empty');
+  btnDownload.hidden = false;
+  btnDownload.onclick = (e) => { e.preventDefault(); triggerDownload(dlUrl, f.name); };
+
+  showPreview(f, url);
+}
+
+// ── Preview ─────────────────────────────────────────────
+function showPreview(f, url) {
+  previewContent.innerHTML = '';
+  previewContent.style.padding    = '20px';
+  previewContent.style.alignItems = 'center';
+
+  const ext = f.name.split('.').pop().toLowerCase();
+
+  // Imagen
+  if (['jpg','jpeg','png','gif','webp','bmp','svg','ico'].includes(ext)) {
+    const img = document.createElement('img');
+    img.className = 'preview-img';
+    img.src = url;
+    img.alt = f.name;
+    previewContent.appendChild(img);
+    return;
+  }
+
+  // Video
+  if (['mp4','webm','ogg','mov','mkv'].includes(ext)) {
+    const vid = document.createElement('video');
+    vid.className = 'preview-vid';
+    vid.controls  = true;
+    vid.autoplay  = false;
+    vid.src = url;
+    previewContent.appendChild(vid);
+    return;
+  }
+
+  // Audio
+  if (['mp3','wav','ogg','aac','flac','m4a','opus'].includes(ext)) {
+    const wrap = document.createElement('div');
+    wrap.className = 'preview-audio-wrap';
+    wrap.innerHTML = `<div class="preview-audio-icon">🎵</div>`;
+    const aud = document.createElement('audio');
+    aud.className = 'preview-aud';
+    aud.controls  = true;
+    aud.src = url;
+    wrap.appendChild(aud);
+    previewContent.appendChild(wrap);
+    return;
+  }
+
+  // PDF
+  if (ext === 'pdf') {
+    previewContent.style.padding = '0';
+    previewContent.style.alignItems = 'stretch';
+    const iframe = document.createElement('iframe');
+    iframe.className = 'preview-pdf';
+    iframe.src = url;
+    previewContent.appendChild(iframe);
+    return;
+  }
+
+  // Texto / código / JSON
+  const textExts = ['txt','log','md','csv','json','xml','html','js','ts','jsx','tsx',
+                    'py','sh','bash','env','ini','yaml','yml','sql','css','java','kt'];
+  if (textExts.includes(ext) || f.size < 80_000) {
+    fetch(url)
+      .then(r => r.text())
+      .then(raw => {
+        previewContent.style.padding    = '0';
+        previewContent.style.alignItems = 'flex-start';
+        const wrap = document.createElement('div');
+        wrap.className = 'preview-text-wrap';
+        const pre = document.createElement('pre');
+        let text = raw;
+        if (ext === 'json') {
+          try { text = JSON.stringify(JSON.parse(raw), null, 2); pre.className = 'json'; } catch(_) {}
+        }
+        pre.textContent = text;
+        wrap.appendChild(pre);
+        previewContent.appendChild(wrap);
+      })
+      .catch(() => noPreview(f));
+    return;
+  }
+
+  noPreview(f);
+}
+
+function noPreview(f) {
+  previewContent.innerHTML = `
+    <div class="preview-noop">
+      <span class="np-icon">${icon(f.name)}</span>
+      <div class="np-name">${esc(f.name)}</div>
+      <div class="np-size">${fmtSize(f.size)} · sin previsualización</div>
+    </div>
+  `;
+}
+
+// ── Utils ────────────────────────────────────────────────
+function icon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const m = {
+    jpg:'🖼', jpeg:'🖼', png:'🖼', gif:'🖼', webp:'🖼', svg:'🖼', ico:'🖼', bmp:'🖼',
+    mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', webm:'🎬',
+    mp3:'🎵', wav:'🎵', aac:'🎵', flac:'🎵', m4a:'🎵', opus:'🎵',
+    pdf:'📄',
+    txt:'📝', log:'📝', md:'📝',
+    json:'{ }', xml:'‹›', csv:'⊞', sql:'🗃',
+    zip:'🗜', rar:'🗜', tar:'🗜', gz:'🗜',
+    apk:'📦', exe:'💾', dmg:'💾',
+    js:'⚡', ts:'⚡', py:'🐍', sh:'$', java:'☕', kt:'🟣',
+  };
+  return m[ext] ?? '📁';
+}
+
+function fmtSize(b) {
+  if (b < 1024)          return b + ' B';
+  if (b < 1024 * 1024)   return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Download ─────────────────────────────────────────────
+function triggerDownload(url, name) {
+  const a = document.createElement('a');
+  a.href     = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+loadFiles();
+</script>
+</body>
+</html>

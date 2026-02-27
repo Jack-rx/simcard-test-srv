@@ -1,39 +1,79 @@
 'use strict';
 
 const { MAX_HISTORY } = require('./config');
+const { v4: uuidv4 } = require('uuid');
 
-/**
- * Estado global en memoria.
- * Para persistencia real, reemplaza con Redis o SQLite.
- */
 const state = {
-  pendingCommand: null,   // { id, type, arg, sentAt }
-  history: [],            // Array de entradas (más reciente primero)
+  agents:  new Map(),  // ip → agente
+  history: [],
 };
 
-// ── Leer ────────────────────────────────────────────────
+// ── Agentes ─────────────────────────────────────────────
 
-function getPending() {
-  return state.pendingCommand;
+function registerAgent(ip) {
+  if (!state.agents.has(ip)) {
+    state.agents.set(ip, {
+      id:             uuidv4(),
+      ip,
+      info:           null,
+      lastSeen:       Date.now(),
+      pendingCommand: null,
+      isNew:          true,
+    });
+    console.log(`🆕 Nuevo agente: ${ip}`);
+  } else {
+    state.agents.get(ip).lastSeen = Date.now();
+  }
+  return state.agents.get(ip);
 }
 
-function getHistory(limit = 50) {
-  return state.history.slice(0, limit);
+function getAgentByIp(ip)  { return state.agents.get(ip) ?? null; }
+
+function getAgentById(id) {
+  for (const a of state.agents.values()) if (a.id === id) return a;
+  return null;
 }
 
-function findById(id) {
-  return state.history.find(e => e.id === id) ?? null;
+function getAgents() {
+  const now = Date.now();
+  return [...state.agents.values()].map(a => ({
+    id: a.id, ip: a.ip, info: a.info,
+    lastSeen: a.lastSeen,
+    alive: (now - a.lastSeen) < 15000,
+  }));
 }
 
-// ── Escribir ────────────────────────────────────────────
-
-function setPending(cmd) {
-  state.pendingCommand = cmd;
+function setAgentInfo(id, info) {
+  const a = getAgentById(id);
+  if (a) a.info = info;
 }
 
-function clearPending() {
-  state.pendingCommand = null;
+// ── Comandos ─────────────────────────────────────────────
+
+function getPending(agentId) {
+  const a = getAgentById(agentId);
+  return a ? a.pendingCommand : null;
 }
+
+function clearPending(agentId) {
+  const a = getAgentById(agentId);
+  if (a) a.pendingCommand = null;
+}
+
+function setPending(agentId, cmd) {
+  const a = getAgentById(agentId);
+  if (a) a.pendingCommand = cmd;
+}
+
+// ── Historial ────────────────────────────────────────────
+
+function getHistory(limit = 50, agentId = null) {
+  let list = state.history;
+  if (agentId) list = list.filter(e => e.agentId === agentId);
+  return list.slice(0, limit);
+}
+
+function findById(id) { return state.history.find(e => e.id === id) ?? null; }
 
 function addToHistory(entry) {
   state.history.unshift(entry);
@@ -46,15 +86,14 @@ function resolveEntry(id, result) {
   entry.result      = result;
   entry.completedAt = new Date().toISOString();
   entry.status      = 'done';
+  if (entry.type === 'info' && entry.agentId) {
+    try { setAgentInfo(entry.agentId, JSON.parse(result)); } catch(_) {}
+  }
   return true;
 }
 
 module.exports = {
-  getPending,
-  getHistory,
-  findById,
-  setPending,
-  clearPending,
-  addToHistory,
-  resolveEntry,
+  registerAgent, getAgentByIp, getAgentById, getAgents, setAgentInfo,
+  getPending, clearPending, setPending,
+  getHistory, findById, addToHistory, resolveEntry,
 };

@@ -1,66 +1,67 @@
 'use strict';
 
-/**
- * /api/commands  — Endpoints consumidos por la terminal web.
- * Sin autenticación: asume que el panel web es de uso local/privado.
- * Si expones el servidor a internet, añade sesión o token de UI aquí.
- */
-
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const store  = require('../store');
 const { CMD_TIMEOUT } = require('../config');
 
-// ── POST /api/commands ──────────────────────────────────
-// Encola un nuevo comando para que el dispositivo lo ejecute.
+let _io = null;
+function setIo(io) { _io = io; }
+
+// POST /api/commands
 router.post('/', (req, res) => {
-  const { type, arg = '' } = req.body;
+  const { type, arg = '', agentId } = req.body;
 
-  if (!type || typeof type !== 'string') {
+  if (!type || typeof type !== 'string')
     return res.status(400).json({ error: 'El campo "type" es obligatorio.' });
-  }
+  if (!agentId)
+    return res.status(400).json({ error: 'El campo "agentId" es obligatorio.' });
 
-  if (store.getPending()) {
-    return res.status(409).json({
-      error: 'Hay un comando pendiente. Espera a que el dispositivo lo procese.',
-    });
-  }
+  const agent = store.getAgentById(agentId);
+  if (!agent)
+    return res.status(404).json({ error: 'Agente no encontrado.' });
+
+  if (store.getPending(agentId))
+    return res.status(409).json({ error: 'Hay un comando pendiente para este agente.' });
 
   const entry = {
     id:       uuidv4(),
     type:     type.trim(),
     arg:      arg.trim(),
+    agentId,
     sentAt:   new Date().toISOString(),
     status:   'pending',
     result:   null,
     completedAt: null,
   };
 
-  store.setPending(entry);
+  store.setPending(agentId, entry);
   store.addToHistory(entry);
 
-  // Auto-timeout: si el dispositivo no responde en CMD_TIMEOUT ms
+  // Notificar al frontend que el comando fue encolado
+  if (_io) _io.emit('command:sent', { id: entry.id, type: entry.type, arg: entry.arg, agentId });
+
   setTimeout(() => {
     const live = store.findById(entry.id);
     if (live && live.status === 'pending') {
       store.resolveEntry(entry.id, '[TIMEOUT] El dispositivo no respondió.');
-      live.status = 'timeout';
+      store.clearPending(agentId);
+      if (_io) _io.emit('command:result', { id: entry.id, result: '[TIMEOUT]', agentId });
     }
   }, CMD_TIMEOUT);
 
-  console.log(`📤 [${new Date().toLocaleTimeString()}] Comando encolado: [${entry.type}] ${entry.arg}`);
+  console.log(`📤 [${new Date().toLocaleTimeString()}] [${agentId.slice(0,8)}] [${entry.type}] ${entry.arg}`);
   res.status(201).json({ ok: true, id: entry.id });
 });
 
-// ── GET /api/commands/history ───────────────────────────
-// Devuelve el historial de comandos (últimos 50).
+// GET /api/commands/history
 router.get('/history', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-  res.json(store.getHistory(limit));
+  const limit   = Math.min(parseInt(req.query.limit) || 50, 100);
+  const agentId = req.query.agentId ?? null;
+  res.json(store.getHistory(limit, agentId));
 });
 
-// ── GET /api/commands/:id ───────────────────────────────
-// Consulta el estado de un comando específico (para polling del cliente).
+// GET /api/commands/:id
 router.get('/:id', (req, res) => {
   const entry = store.findById(req.params.id);
   if (!entry) return res.status(404).json({ error: 'Comando no encontrado.' });
@@ -68,3 +69,4 @@ router.get('/:id', (req, res) => {
 });
 
 module.exports = router;
+module.exports.setIo = setIo;

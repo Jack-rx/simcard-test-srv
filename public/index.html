@@ -19,11 +19,19 @@
       </div>
       <div class="indicator">
         <div class="led" id="ledAgent"></div>
-        <span id="agentLabel">agente</span>
+        <span id="agentLabel">sin agente</span>
       </div>
       <button class="btn-clr" id="btnClear">limpiar</button>
     </div>
   </header>
+
+  <!-- AGENTES SIDEBAR -->
+  <aside class="agents-panel">
+    <div class="panel-title">agentes</div>
+    <div class="agents-list" id="agentsList">
+      <div class="agents-empty">Sin agentes<br>conectados</div>
+    </div>
+  </aside>
 
   <!-- HISTORIAL -->
   <aside class="history-panel">
@@ -35,8 +43,8 @@
   <main class="output-panel">
     <div class="output-scroll" id="output">
       <div class="boot" id="bootMsg">
-        commander v2.0 — agente Android conectado por HTTP polling<br>
-        introduce un comando y presiona Enter o [run]
+        commander v3.0 — multi-agente Android<br>
+        selecciona un agente en la barra lateral e introduce un comando
       </div>
     </div>
   </main>
@@ -52,19 +60,24 @@
 
   <!-- INPUT -->
   <footer class="input-bar">
-    <div class="prompt-str"><span class="ph">›</span> </div>
+    <div class="prompt-str">
+      <span class="ph">›</span>
+      <span class="active-agent-tag" id="activeAgentTag">—</span>
+    </div>
     <input
       class="cmd-input"
       id="cmdInput"
       type="text"
       autocomplete="off"
       spellcheck="false"
-      placeholder="comando [argumento]"
+      placeholder="selecciona un agente primero…"
+      disabled
     >
-    <button class="btn-exec" id="btnExec">run</button>
+    <button class="btn-exec" id="btnExec" disabled>run</button>
   </footer>
 
 </div>
+<script src="/socket.io/socket.io.js"></script>
 <script src="terminal.js"></script>
 </body>
 </html>

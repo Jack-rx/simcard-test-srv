@@ -35,10 +35,14 @@ app.use('/api/upload',   apiUpload);
 
 // ── Socket.IO — conexiones del frontend web ─────────────
 io.on('connection', (socket) => {
-  console.log(`🖥️  Panel web conectado: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.log(`🖥️  Panel web desconectado: ${socket.id}`);
-  });
+    console.log(`🖥️  Panel web conectado: ${socket.id}`);
+    
+    // Al conectarse, enviamos inmediatamente el puerto configurado al frontend
+    socket.emit('server:info', { port: config.PORT });
+
+    socket.on('disconnect', () => {
+        console.log(`🖥️  Panel web desconectado: ${socket.id}`);
+    });
 });
 
 // ── Start ───────────────────────────────────────────────

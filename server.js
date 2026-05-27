@@ -47,7 +47,7 @@ io.on("connection", (socket) => {
 
 // ── Start ───────────────────────────────────────────────
 
-server.listen(3000, "0.0.0.0", () => {
+server.listen(config.PORT, "0.0.0.0", () => {
   console.log("\n┌─────────────────────────────────────────┐");
   console.log("│        REMOTE COMMANDER — SERVER        │");
   console.log("└─────────────────────────────────────────┘");
